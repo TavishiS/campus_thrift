@@ -1,0 +1,39 @@
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "campus-thrift-app",
+          "appId": "1:447350001382:android:672f37e06e96daa27cb527",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "campus-thrift-app",
+          "configurations": {
+            "android": "1:447350001382:android:672f37e06e96daa27cb527",
+            "ios": "1:447350001382:ios:2487c09116aecf1f7cb527",
+            "macos": "1:447350001382:ios:2487c09116aecf1f7cb527",
+            "web": "1:447350001382:web:e651e9a9cbfd5af67cb527",
+            "windows": "1:447350001382:web:c1f278f3077d3f0e7cb527"
+          }
+        }
+      }
+    }
+  },
+  "hosting": {
+    "public": "build/web",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  }
+}

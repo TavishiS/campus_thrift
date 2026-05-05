@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "447350001382",
+    "project_id": "campus-thrift-app",
+    "storage_bucket": "campus-thrift-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:447350001382:android:672f37e06e96daa27cb527",
+        "android_client_info": {
+          "package_name": "com.example.campus_thrift"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAx8m_uzbZbBm3hs3T4X8viByCYTWo_hrw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
