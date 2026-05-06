@@ -15,34 +15,39 @@ class _AddItemScreenState extends State<AddItemScreen> {
   final _titleController = TextEditingController();
   final _priceController = TextEditingController();
   final _descController = TextEditingController();
+  final _customCategoryController = TextEditingController(); // NEW: For "Other"
   
   String _selectedCategory = 'Books';
-  final List<String> _categories = ['Books', 'Electronics', 'Stationery', 'Other'];
+  // UPDATED CATEGORIES
+  final List<String> _categories = ['Books', 'Stationery', 'Electronics', 'Utensils', 'Mattress', 'Toiletries', 'Cycle/Vehicle', 'Other'];
   
   bool _isLoading = false;
   
-  XFile? _selectedImageFile;
-  Uint8List? _imageBytes;
+  // UPDATED: Now holds multiple images
+  final List<XFile> _selectedImages = [];
   final ImagePicker _picker = ImagePicker();
 
-  Future<void> _pickImage() async {
-    final XFile? image = await _picker.pickImage(
-      source: ImageSource.gallery,
+  Future<void> _pickImages() async {
+    final List<XFile> images = await _picker.pickMultiImage(
       imageQuality: 70, 
     );
-    if (image != null) {
-      final bytes = await image.readAsBytes();
+    if (images.isNotEmpty) {
       setState(() {
-        _selectedImageFile = image;
-        _imageBytes = bytes;
+        _selectedImages.addAll(images);
       });
     }
   }
 
+  void _removeImage(int index) {
+    setState(() {
+      _selectedImages.removeAt(index);
+    });
+  }
+
   void _submitItem() async {
-    if (_selectedImageFile == null) {
+    if (_selectedImages.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select an image first')),
+        const SnackBar(content: Text('Please add at least one image')),
       );
       return;
     }
@@ -50,22 +55,28 @@ class _AddItemScreenState extends State<AddItemScreen> {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
 
-      String? imageUrl = await DatabaseService().uploadImage(_selectedImageFile!);
+      // Upload multiple images
+      List<String> imageUrls = await DatabaseService().uploadImages(_selectedImages);
 
-      if (imageUrl == null) {
+      if (imageUrls.isEmpty) {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to upload image')),
+          const SnackBar(content: Text('Failed to upload images')),
         );
         return;
       }
+
+      // Resolve final category (If 'Other', use the custom text field)
+      String finalCategory = _selectedCategory == 'Other' 
+          ? _customCategoryController.text.trim() 
+          : _selectedCategory;
 
       String? error = await DatabaseService().addMarketplaceItem(
         title: _titleController.text.trim(),
         price: double.parse(_priceController.text.trim()),
         description: _descController.text.trim(),
-        category: _selectedCategory,
-        imageUrl: imageUrl, 
+        category: finalCategory,
+        imageUrls: imageUrls, // Store list of URLs
       );
 
       setState(() => _isLoading = false);
@@ -86,6 +97,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
     _titleController.dispose();
     _priceController.dispose();
     _descController.dispose();
+    _customCategoryController.dispose();
     super.dispose();
   }
 
@@ -102,29 +114,67 @@ class _AddItemScreenState extends State<AddItemScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Image Picker Box - Updated for Dark Theme
-              GestureDetector(
-                onTap: _pickImage,
-                child: Container(
-                  height: 200,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[850], // Darkened background
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey.shade700), // Darkened border
-                  ),
-                  child: _imageBytes != null
-                      ? ClipRRect(
+              // MULTI-IMAGE PICKER UI
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    for (int i = 0; i < _selectedImages.length; i++)
+                      Stack(
+                        children: [
+                          Container(
+                            margin: const EdgeInsets.only(right: 8),
+                            height: 120,
+                            width: 120,
+                            decoration: BoxDecoration(
+                              color: Colors.grey[850],
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: FutureBuilder<Uint8List>(
+                                future: _selectedImages[i].readAsBytes(),
+                                builder: (context, snapshot) {
+                                  if (snapshot.hasData) {
+                                    return Image.memory(snapshot.data!, fit: BoxFit.cover);
+                                  }
+                                  return const Center(child: CircularProgressIndicator(color: Colors.teal));
+                                },
+                              ),
+                            ),
+                          ),
+                          Positioned(
+                            right: 8,
+                            top: 0,
+                            child: IconButton(
+                              icon: const Icon(Icons.cancel, color: Colors.red),
+                              onPressed: () => _removeImage(i),
+                            ),
+                          ),
+                        ],
+                      ),
+                    // Add more images button
+                    GestureDetector(
+                      onTap: _pickImages,
+                      child: Container(
+                        height: 120,
+                        width: 120,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[850], 
                           borderRadius: BorderRadius.circular(12),
-                          child: Image.memory(_imageBytes!, fit: BoxFit.cover),
-                        )
-                      : const Column(
+                          border: Border.all(color: Colors.grey.shade700), 
+                        ),
+                        child: const Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.camera_alt, size: 50, color: Colors.grey),
+                            Icon(Icons.add_a_photo, size: 40, color: Colors.grey),
                             SizedBox(height: 8),
-                            Text('Tap to select an image', style: TextStyle(color: Colors.grey)),
+                            Text('Add Images', style: TextStyle(color: Colors.grey, fontSize: 12)),
                           ],
                         ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 24),
@@ -154,6 +204,17 @@ class _AddItemScreenState extends State<AddItemScreen> {
                 items: _categories.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
                 onChanged: (value) => setState(() => _selectedCategory = value!),
               ),
+              
+              // NEW: Show Custom Category TextField if 'Other' is selected
+              if (_selectedCategory == 'Other') ...[
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _customCategoryController,
+                  decoration: const InputDecoration(labelText: 'Specify Category', border: OutlineInputBorder()),
+                  validator: (value) => value!.isEmpty ? 'Please specify the category' : null,
+                ),
+              ],
+
               const SizedBox(height: 16),
               
               TextFormField(

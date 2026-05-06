@@ -5,9 +5,97 @@ import 'package:url_launcher/url_launcher.dart';
 import '../services/auth_service.dart';
 import '../services/database_service.dart';
 import 'add_item_screen.dart';
+import 'about_screen.dart';
+import 'creator_screen.dart';
+import 'feedback_screen.dart';
+import 'profile_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  // Filter variables
+  String? _selectedCategoryFilter;
+  String? _selectedSortOrder;
+
+  final List<String> _baseCategories = ['Books', 'Stationery', 'Electronics', 'Utensils', 'Mattress', 'Toiletries', 'Cycle/Vehicle'];
+
+  // Filter Dialog Box Logic
+  void _openFilterDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Filter & Sort'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Sort by Price', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.teal)),
+                    RadioListTile<String?>(
+                      title: const Text('None'),
+                      value: null,
+                      groupValue: _selectedSortOrder,
+                      onChanged: (v) { setDialogState(() => _selectedSortOrder = v); setState((){}); },
+                    ),
+                    RadioListTile<String?>(
+                      title: const Text('Low to High'),
+                      value: 'asc',
+                      groupValue: _selectedSortOrder,
+                      onChanged: (v) { setDialogState(() => _selectedSortOrder = v); setState((){}); },
+                    ),
+                    RadioListTile<String?>(
+                      title: const Text('High to Low'),
+                      value: 'desc',
+                      groupValue: _selectedSortOrder,
+                      onChanged: (v) { setDialogState(() => _selectedSortOrder = v); setState((){}); },
+                    ),
+                    const Divider(),
+                    const Text('Filter by Category', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.teal)),
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<String?>(
+                      value: _selectedCategoryFilter,
+                      decoration: const InputDecoration(border: OutlineInputBorder()),
+                      items: [
+                        const DropdownMenuItem(value: null, child: Text('All Categories')),
+                        ..._baseCategories.map((c) => DropdownMenuItem(value: c, child: Text(c))),
+                        const DropdownMenuItem(value: 'Other', child: Text('Other (Custom Categories)')),
+                      ],
+                      onChanged: (v) { setDialogState(() => _selectedCategoryFilter = v); setState((){}); },
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    setDialogState(() {
+                      _selectedSortOrder = null;
+                      _selectedCategoryFilter = null;
+                    });
+                    setState(() {});
+                  }, 
+                  child: const Text('Clear All', style: TextStyle(color: Colors.red))
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(context), 
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.teal, foregroundColor: Colors.white),
+                  child: const Text('Apply Filter')
+                ),
+              ],
+            );
+          }
+        );
+      }
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -19,10 +107,57 @@ class HomeScreen extends StatelessWidget {
         elevation: 0,
         actions: [
           IconButton(
+            icon: Icon(Icons.filter_list, color: (_selectedCategoryFilter != null || _selectedSortOrder != null) ? Colors.yellowAccent : Colors.white),
+            onPressed: _openFilterDialog,
+          ),
+          IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () => AuthService().logout(),
           )
         ],
+      ),
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            const DrawerHeader(
+              decoration: BoxDecoration(color: Colors.teal),
+              child: Text('CampusThrift', style: TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold)),
+            ),
+            ListTile(
+              leading: const Icon(Icons.person_outline),
+              title: const Text('My Profile'),
+              onTap: () {
+                Navigator.pop(context); // Close drawer
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen()));
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.info_outline),
+              title: const Text('About the App'),
+              onTap: () {
+                Navigator.pop(context); 
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const AboutScreen()));
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.person),
+              title: const Text('From the Creator'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const CreatorScreen()));
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.feedback),
+              title: const Text('Submit Feedback'),
+              onTap: () {
+                Navigator.pop(context); 
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const FeedbackScreen()));
+              },
+            ),
+          ],
+        ),
       ),
       
       body: StreamBuilder<QuerySnapshot>(
@@ -40,18 +175,37 @@ class HomeScreen extends StatelessWidget {
             );
           }
 
-          final items = snapshot.data!.docs;
+          List<Map<String, dynamic>> items = snapshot.data!.docs.map((doc) {
+            var data = doc.data() as Map<String, dynamic>;
+            data['docId'] = doc.id;
+            return data;
+          }).toList();
+
+          if (_selectedCategoryFilter != null) {
+            if (_selectedCategoryFilter == 'Other') {
+              items = items.where((item) => !_baseCategories.contains(item['category'])).toList();
+            } else {
+              items = items.where((item) => item['category'] == _selectedCategoryFilter).toList();
+            }
+          }
+
+          if (_selectedSortOrder == 'asc') {
+            items.sort((a, b) => (a['price'] as num).compareTo(b['price'] as num));
+          } else if (_selectedSortOrder == 'desc') {
+            items.sort((a, b) => (b['price'] as num).compareTo(a['price'] as num));
+          }
+
+          if (items.isEmpty) {
+            return const Center(child: Text('No items found matching your filters.', style: TextStyle(color: Colors.grey)));
+          }
 
           return ListView.builder(
             padding: const EdgeInsets.all(12),
             itemCount: items.length,
             itemBuilder: (context, index) {
-              var itemData = items[index].data() as Map<String, dynamic>;
-              String docId = items[index].id; 
-              
               return ItemCard(
-                itemData: itemData,
-                docId: docId,
+                itemData: items[index],
+                docId: items[index]['docId'],
                 currentUserId: currentUserId,
               );
             },
@@ -72,7 +226,7 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-class ItemCard extends StatelessWidget {
+class ItemCard extends StatefulWidget {
   final Map<String, dynamic> itemData;
   final String docId;
   final String currentUserId;
@@ -84,27 +238,45 @@ class ItemCard extends StatelessWidget {
     required this.currentUserId,
   });
 
-  // UPDATED FIX: 100% reliable Gmail composer link
+  @override
+  State<ItemCard> createState() => _ItemCardState();
+}
+
+class _ItemCardState extends State<ItemCard> {
+  int _currentImageIndex = 0; 
+
+  // Helper method to encode query parameters
+  String? encodeQueryParameters(Map<String, String> params) {
+    return params.entries
+        .map((MapEntry<String, String> e) =>
+            '${Uri.encodeComponent(e.key)}=${Uri.encodeComponent(e.value)}')
+        .join('&');
+  }
+
+  // NATIVE MAILTO SYSTEM: Reliable way to open native email apps
   Future<void> _emailSeller(BuildContext context) async {
-    final String email = itemData['sellerEmail'] ?? '';
-    final String title = itemData['title'] ?? 'an item';
+    final String email = widget.itemData['sellerEmail'] ?? '';
+    final String title = widget.itemData['title'] ?? 'an item';
     
-    // Properly encode parameters
-    final String encodedSubject = Uri.encodeComponent('Interested in buying your item: $title');
-    
-    // This specific URL forces the browser/app to handle it as a Gmail compose window.
-    // On mobile, it will prompt to open natively in the Gmail App with fields filled!
-    final Uri gmailWebUri = Uri.parse('https://mail.google.com/mail/?view=cm&fs=1&to=$email&su=$encodedSubject');
+    // Create the mailto URI
+    final Uri emailLaunchUri = Uri(
+      scheme: 'mailto',
+      path: email, // Seller's email ID
+      query: encodeQueryParameters(<String, String>{
+        'subject': 'Interested in buying your item: $title',
+      }),
+    );
 
     try {
-      await launchUrl(
-        gmailWebUri, 
-        mode: LaunchMode.externalApplication, // Ensures it leaves the app to open the intent
-      );
+      if (await canLaunchUrl(emailLaunchUri)) {
+        await launchUrl(emailLaunchUri);
+      } else {
+        throw Exception('Could not launch email app');
+      }
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not open Gmail.')),
+          const SnackBar(content: Text('Could not open your email app.')),
         );
       }
     }
@@ -127,7 +299,7 @@ class ItemCard extends StatelessWidget {
     ) ?? false;
 
     if (confirm) {
-      String? error = await DatabaseService().deleteItem(docId, itemData['imageUrl'] ?? '');
+      String? error = await DatabaseService().deleteItem(widget.docId, widget.itemData);
       if (error != null && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
       }
@@ -136,7 +308,14 @@ class ItemCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    bool isMyItem = currentUserId == itemData['sellerId'];
+    bool isMyItem = widget.currentUserId == widget.itemData['sellerId'];
+    
+    List<dynamic> displayImages = [];
+    if (widget.itemData['imageUrls'] != null && (widget.itemData['imageUrls'] as List).isNotEmpty) {
+      displayImages = widget.itemData['imageUrls'];
+    } else if (widget.itemData['imageUrl'] != null) {
+      displayImages = [widget.itemData['imageUrl']];
+    }
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
@@ -146,20 +325,52 @@ class ItemCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // IMAGE SECTION
+          // MULTI-IMAGE SECTION
           Container(
-            height: 200,
+            height: 250, 
             width: double.infinity,
             color: Colors.grey[800],
-            child: itemData['imageUrl'] != null
-                ? Image.network(
-                    itemData['imageUrl'],
-                    fit: BoxFit.cover,
-                    loadingBuilder: (context, child, loadingProgress) {
-                      if (loadingProgress == null) return child;
-                      return const Center(child: CircularProgressIndicator(color: Colors.teal));
-                    },
-                    errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image, size: 50, color: Colors.grey),
+            child: displayImages.isNotEmpty
+                ? Stack(
+                    children: [
+                      PageView.builder(
+                        itemCount: displayImages.length,
+                        onPageChanged: (index) => setState(() => _currentImageIndex = index),
+                        itemBuilder: (context, index) {
+                          return Image.network(
+                            displayImages[index],
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                            loadingBuilder: (context, child, loadingProgress) {
+                              if (loadingProgress == null) return child;
+                              return const Center(child: CircularProgressIndicator(color: Colors.teal));
+                            },
+                            errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image, size: 50, color: Colors.grey),
+                          );
+                        },
+                      ),
+                      if (displayImages.length > 1)
+                        Positioned(
+                          bottom: 8,
+                          left: 0,
+                          right: 0,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: List.generate(
+                              displayImages.length,
+                              (index) => Container(
+                                margin: const EdgeInsets.symmetric(horizontal: 4),
+                                width: 8,
+                                height: 8,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: _currentImageIndex == index ? Colors.teal : Colors.grey.withOpacity(0.5),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
                   )
                 : const Icon(Icons.image_not_supported, size: 50, color: Colors.grey),
           ),
@@ -175,14 +386,14 @@ class ItemCard extends StatelessWidget {
                   children: [
                     Expanded(
                       child: Text(
-                        itemData['title'] ?? 'No Title',
+                        widget.itemData['title'] ?? 'No Title',
                         style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     Text(
-                      '₹${itemData['price']?.toString() ?? '0'}',
+                      '₹${widget.itemData['price']?.toString() ?? '0'}',
                       style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.teal),
                     ),
                   ],
@@ -191,13 +402,13 @@ class ItemCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(color: Colors.teal.withOpacity(0.15), borderRadius: BorderRadius.circular(8)),
-                  child: Text(itemData['category'] ?? 'Category', style: const TextStyle(color: Colors.teal, fontSize: 12, fontWeight: FontWeight.w600)),
+                  child: Text(widget.itemData['category'] ?? 'Category', style: const TextStyle(color: Colors.teal, fontSize: 12, fontWeight: FontWeight.w600)),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  itemData['description'] ?? 'No description provided.', 
+                  widget.itemData['description'] ?? 'No description provided.', 
                   style: const TextStyle(color: Colors.grey, fontSize: 14), 
-                  maxLines: 2, 
+                  maxLines: 3, 
                   overflow: TextOverflow.ellipsis
                 ),
                 const SizedBox(height: 12),
@@ -209,7 +420,7 @@ class ItemCard extends StatelessWidget {
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
-                        itemData['sellerName'] ?? 'Unknown Seller',
+                        widget.itemData['sellerName'] ?? 'Unknown Seller',
                         style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.bold),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -224,7 +435,7 @@ class ItemCard extends StatelessWidget {
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
-                        itemData['sellerEmail'] ?? 'No email provided',
+                        widget.itemData['sellerEmail'] ?? 'No email provided',
                         style: const TextStyle(color: Colors.grey),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -250,7 +461,7 @@ class ItemCard extends StatelessWidget {
                     child: ElevatedButton.icon(
                       onPressed: () => _emailSeller(context),
                       icon: const Icon(Icons.email),
-                      label: const Text('Contact Seller on Gmail'),
+                      label: const Text('Contact Seller'),
                       style: ElevatedButton.styleFrom(backgroundColor: Colors.teal, foregroundColor: Colors.white),
                     ),
                   ),

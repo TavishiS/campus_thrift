@@ -9,28 +9,34 @@ class DatabaseService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseStorage _storage = FirebaseStorage.instance;
 
-  Future<String?> uploadImage(XFile imageFile) async {
-    try {
-      String fileName = DateTime.now().millisecondsSinceEpoch.toString();
-      Reference ref = _storage.ref().child('item_images').child(fileName);
-      
-      Uint8List imageBytes = await imageFile.readAsBytes();
-      
-      UploadTask uploadTask = ref.putData(imageBytes);
-      TaskSnapshot snapshot = await uploadTask;
-      
-      return await snapshot.ref.getDownloadURL();
-    } catch (e) {
-      return null;
+  // UPDATED: Now uploads multiple images and returns a list of URLs
+  Future<List<String>> uploadImages(List<XFile> imageFiles) async {
+    List<String> urls = [];
+    for (var imageFile in imageFiles) {
+      try {
+        String fileName = '${DateTime.now().millisecondsSinceEpoch}_${imageFile.name}';
+        Reference ref = _storage.ref().child('item_images').child(fileName);
+        
+        Uint8List imageBytes = await imageFile.readAsBytes();
+        UploadTask uploadTask = ref.putData(imageBytes);
+        TaskSnapshot snapshot = await uploadTask;
+        
+        String url = await snapshot.ref.getDownloadURL();
+        urls.add(url);
+      } catch (e) {
+        print("Error uploading image: $e");
+      }
     }
+    return urls;
   }
 
+  // UPDATED: Saves an array of image URLs
   Future<String?> addMarketplaceItem({
     required String title,
     required double price,
     required String description,
     required String category,
-    required String imageUrl, 
+    required List<String> imageUrls, 
   }) async {
     try {
       final User? user = _auth.currentUser;
@@ -44,7 +50,6 @@ class DatabaseService {
         sellerName = data['name'] ?? 'Unknown Seller';
       }
 
-      // NEW FIX: Fallback to email prefix if name is missing in database
       if (sellerName == 'Unknown Seller' && user.email != null) {
         sellerName = user.email!.split('@')[0]; 
       }
@@ -57,7 +62,7 @@ class DatabaseService {
         'sellerId': user.uid,
         'sellerEmail': user.email,
         'sellerName': sellerName, 
-        'imageUrl': imageUrl, 
+        'imageUrls': imageUrls, // Store as an array
         'createdAt': FieldValue.serverTimestamp(),
       });
       
@@ -74,13 +79,27 @@ class DatabaseService {
         .snapshots(); 
   }
 
-  Future<String?> deleteItem(String docId, String imageUrl) async {
+  // UPDATED: Deletes multiple images when deleting a post
+  Future<String?> deleteItem(String docId, Map<String, dynamic> itemData) async {
     try {
       await _firestore.collection('items').doc(docId).delete();
-      try {
-        await _storage.refFromURL(imageUrl).delete();
-      } catch (e) {
-        print("Note: Could not delete image from storage: $e");
+      
+      List<dynamic> urlsToDelete = [];
+      // Support for new items with multiple images
+      if (itemData['imageUrls'] != null) {
+        urlsToDelete = itemData['imageUrls'] as List<dynamic>;
+      } 
+      // Backward compatibility for your older test items
+      else if (itemData['imageUrl'] != null) {
+        urlsToDelete = [itemData['imageUrl']];
+      }
+
+      for (String url in urlsToDelete) {
+        try {
+          await _storage.refFromURL(url).delete();
+        } catch (e) {
+          print("Note: Could not delete image from storage: $e");
+        }
       }
       return null; 
     } catch (e) {

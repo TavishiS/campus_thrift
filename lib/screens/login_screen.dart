@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import 'about_screen.dart';
+import 'creator_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -18,7 +20,6 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
 
   void _submit() async {
-    // Basic validation
     if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please fill all fields')),
@@ -49,32 +50,38 @@ class _LoginScreenState extends State<LoginScreen> {
       );
     }
 
-    setState(() => _isLoading = false);
+    if (mounted) setState(() => _isLoading = false);
 
-    // Show error if one occurred
     if (error != null && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
-    }
-    // Note: We don't manually navigate here. The StreamBuilder in main.dart handles it!
+    } 
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
+      body: Center(
+        child: SingleChildScrollView(
+          child: Padding(
             padding: const EdgeInsets.all(24.0),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
-                  _isLogin ? 'Welcome Back' : 'Create Account',
-                  style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
-                  textAlign: TextAlign.center,
+                // REPLACED THE ICON WITH YOUR CUSTOM IMAGE
+                // Make sure the path matches your pubspec.yaml file
+                Image.asset(
+                  'assets/logo.png', 
+                  height: 120, 
+                  fit: BoxFit.contain,
                 ),
-                const SizedBox(height: 40),
+                const SizedBox(height: 16),
+                const Text(
+                  'Welcome to CampusThrift 🤝',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.teal),
+                ),
+                const SizedBox(height: 32),
                 if (!_isLogin)
                   TextField(
                     controller: _nameController,
@@ -124,7 +131,22 @@ class _LoginScreenState extends State<LoginScreen> {
                       ? 'Need an account? Register here' 
                       : 'Already have an account? Login here'
                   ),
-                )
+                ),
+                const Divider(height: 48),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AboutScreen())),
+                      child: const Text('About App', style: TextStyle(color: Colors.grey)),
+                    ),
+                    const Text('|', style: TextStyle(color: Colors.grey)),
+                    TextButton(
+                      onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CreatorScreen())),
+                      child: const Text("Creator's Corner", style: TextStyle(color: Colors.grey)),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
