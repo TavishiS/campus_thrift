@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:firebase_analytics/firebase_analytics.dart'; // ADDED IMPORT
 import '../services/database_service.dart';
 
 class AddItemScreen extends StatefulWidget {
@@ -15,15 +16,21 @@ class _AddItemScreenState extends State<AddItemScreen> {
   final _titleController = TextEditingController();
   final _priceController = TextEditingController();
   final _descController = TextEditingController();
-  final _customCategoryController = TextEditingController(); // NEW: For "Other"
+  final _customCategoryController = TextEditingController();
   
   String _selectedCategory = 'Books';
-  // UPDATED CATEGORIES
-  final List<String> _categories = ['Books', 'Stationery', 'Electronics', 'Utensils', 'Mattress', 'Toiletries', 'Cycle/Vehicle', 'Other'];
+  final List<String> _categories = [
+    'Books', 
+    'Stationery', 
+    'Electronics', 
+    'Utensils', 
+    'Mattress', 
+    'Toiletries', 
+    'Cycle/Vehicle', 
+    'Other'
+  ];
   
   bool _isLoading = false;
-  
-  // UPDATED: Now holds multiple images
   final List<XFile> _selectedImages = [];
   final ImagePicker _picker = ImagePicker();
 
@@ -66,7 +73,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
         return;
       }
 
-      // Resolve final category (If 'Other', use the custom text field)
+      // Resolve final category
       String finalCategory = _selectedCategory == 'Other' 
           ? _customCategoryController.text.trim() 
           : _selectedCategory;
@@ -76,7 +83,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
         price: double.parse(_priceController.text.trim()),
         description: _descController.text.trim(),
         category: finalCategory,
-        imageUrls: imageUrls, // Store list of URLs
+        imageUrls: imageUrls,
       );
 
       setState(() => _isLoading = false);
@@ -84,6 +91,17 @@ class _AddItemScreenState extends State<AddItemScreen> {
       if (error != null && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
       } else if (mounted) {
+        // LOG FIREBASE ANALYTICS EVENT
+        await FirebaseAnalytics.instance.logEvent(
+          name: 'item_uploaded',
+          parameters: <String, dynamic>{
+            'item_name': _titleController.text.trim(),
+            'category': finalCategory,
+            'price': double.parse(_priceController.text.trim()),
+            'image_count': imageUrls.length,
+          },
+        );
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Item listed successfully!')),
         );
@@ -153,7 +171,6 @@ class _AddItemScreenState extends State<AddItemScreen> {
                           ),
                         ],
                       ),
-                    // Add more images button
                     GestureDetector(
                       onTap: _pickImages,
                       child: Container(
@@ -199,13 +216,12 @@ class _AddItemScreenState extends State<AddItemScreen> {
               const SizedBox(height: 16),
               
               DropdownButtonFormField<String>(
-                initialValue: _selectedCategory,
+                value: _selectedCategory,
                 decoration: const InputDecoration(labelText: 'Category', border: OutlineInputBorder()),
                 items: _categories.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
                 onChanged: (value) => setState(() => _selectedCategory = value!),
               ),
               
-              // NEW: Show Custom Category TextField if 'Other' is selected
               if (_selectedCategory == 'Other') ...[
                 const SizedBox(height: 16),
                 TextFormField(

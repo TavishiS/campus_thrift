@@ -40,6 +40,7 @@ dependencies:
   firebase_storage: ^11.2.8
   image_picker: ^1.2.2
   url_launcher: ^6.3.2
+  firebase_analytics: ^10.5.1
 
 dependency_overrides:
   firebase_auth_web: 5.7.0

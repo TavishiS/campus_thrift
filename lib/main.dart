@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
 import 'firebase_options.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
@@ -13,17 +14,23 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  
+
   runApp(const CampusThriftApp());
 }
 
 class CampusThriftApp extends StatelessWidget {
   const CampusThriftApp({super.key});
 
+  // Static reference so navigatorObservers can access it cleanly
+  static final FirebaseAnalytics analytics = FirebaseAnalytics.instance;
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'CampusThrift',
+      navigatorObservers: [
+        FirebaseAnalyticsObserver(analytics: analytics),
+      ],
       debugShowCheckedModeBanner: false,
       // FORCE DARK THEME GLOBALLY
       themeMode: ThemeMode.dark,
@@ -36,7 +43,6 @@ class CampusThriftApp extends StatelessWidget {
           backgroundColor: Colors.teal,
           foregroundColor: Colors.white,
         ),
-        // Removed useMaterial3: true as it is deprecated and defaults to true natively now
       ),
       // The StreamBuilder listens to Auth state changes in real-time
       home: StreamBuilder<User?>(
