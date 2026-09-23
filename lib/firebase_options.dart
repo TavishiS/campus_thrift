@@ -47,6 +47,7 @@ class DefaultFirebaseOptions {
     projectId: 'campus-thrift-app',
     authDomain: 'campus-thrift-app.firebaseapp.com',
     storageBucket: 'campus-thrift-app.firebasestorage.app',
+    measurementId: 'G-T8D5T3X35N',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
@@ -56,7 +57,6 @@ class DefaultFirebaseOptions {
     projectId: 'campus-thrift-app',
     storageBucket: 'campus-thrift-app.firebasestorage.app',
   );
-
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyBa0kg-zYuQNkifV9a5JDkXJpQBkzAKuxM',
     appId: '1:447350001382:ios:2487c09116aecf1f7cb527',
@@ -65,7 +65,6 @@ class DefaultFirebaseOptions {
     storageBucket: 'campus-thrift-app.firebasestorage.app',
     iosBundleId: 'com.example.campusThrift',
   );
-
   static const FirebaseOptions macos = FirebaseOptions(
     apiKey: 'AIzaSyBa0kg-zYuQNkifV9a5JDkXJpQBkzAKuxM',
     appId: '1:447350001382:ios:2487c09116aecf1f7cb527',
@@ -82,5 +81,6 @@ class DefaultFirebaseOptions {
     projectId: 'campus-thrift-app',
     authDomain: 'campus-thrift-app.firebaseapp.com',
     storageBucket: 'campus-thrift-app.firebasestorage.app',
+    measurementId: 'G-EX58L5N26W',
   );
 }
